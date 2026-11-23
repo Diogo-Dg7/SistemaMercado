@@ -81,6 +81,14 @@ alterar o domínio:
 dotnet ef migrations add <Nome> -p src/Supermercado.Infrastructure -s src/Supermercado.API -o Data/Migrations
 ```
 
+### 3. Testes de integração
+Os testes de `tests/Supermercado.API.IntegrationTests` usam o SQL Server local, mas em um banco **separado**,
+`Supermercado_Testes`: ele é recriado (`EnsureDeleted` + `Migrate`) no início da execução e apagado no final, então
+o banco `Supermercado` nunca é tocado. Ajuste o `Server=` em
+[`appsettings.Testes.json`](./tests/Supermercado.API.IntegrationTests/appsettings.Testes.json) ou use a variável de
+ambiente `ConnectionStrings__SupermercadoTestes`. Por segurança, os testes se recusam a rodar se a connection string
+não apontar para o banco `Supermercado_Testes`.
+
 ## Como executar
 Pré-requisitos: [.NET 10 SDK](https://dotnet.microsoft.com/download) e uma instância do SQL Server (a edição Express serve).
 

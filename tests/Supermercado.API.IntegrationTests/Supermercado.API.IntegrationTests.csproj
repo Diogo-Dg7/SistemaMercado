@@ -17,6 +17,11 @@
     <Using Include="FluentAssertions" />
   </ItemGroup>
   <ItemGroup>
+    <None Update="appsettings.Testes.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Supermercado.API\Supermercado.API.csproj" />
   </ItemGroup>
 </Project>
