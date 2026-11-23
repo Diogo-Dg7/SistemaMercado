@@ -7,6 +7,7 @@ namespace Supermercado.Domain.Entities;
 public class Produto : Entity
 {
     public const int NomeTamanhoMaximo = 200;
+    public const int CasasDecimaisFracionados = 3;
 
     public Produto(
         string nome,
@@ -14,19 +15,26 @@ public class Produto : Entity
         Dinheiro precoCusto,
         Dinheiro precoVenda,
         Categoria categoria,
-        int estoqueMinimo = 0,
-        int estoqueInicial = 0)
+        UnidadeMedida unidadeMedida,
+        decimal estoqueMinimo = 0,
+        decimal estoqueInicial = 0)
     {
         ArgumentNullException.ThrowIfNull(codigoBarras);
         ArgumentNullException.ThrowIfNull(precoCusto);
         ArgumentNullException.ThrowIfNull(precoVenda);
         ArgumentNullException.ThrowIfNull(categoria);
 
+        if (!Enum.IsDefined(unidadeMedida))
+            throw new DomainException("A unidade de medida é inválida.");
+
         if (estoqueMinimo < 0)
             throw new DomainException("O estoque mínimo não pode ser negativo.");
 
         if (estoqueInicial < 0)
             throw new DomainException("O estoque inicial não pode ser negativo.");
+
+        ValidarPrecisaoDaQuantidade(estoqueMinimo, unidadeMedida);
+        ValidarPrecisaoDaQuantidade(estoqueInicial, unidadeMedida);
 
         // Na criação a regra é sempre estrita; a exceção do Gerente vale só em AtualizarPreco.
         ValidarPrecos(precoCusto, precoVenda, PerfilUsuario.Operador);
@@ -37,6 +45,7 @@ public class Produto : Entity
         PrecoVenda = precoVenda;
         Categoria = categoria;
         CategoriaId = categoria.Id;
+        UnidadeMedida = unidadeMedida;
         EstoqueMinimo = estoqueMinimo;
         Estoque = estoqueInicial;
     }
@@ -49,9 +58,11 @@ public class Produto : Entity
 
     public Dinheiro PrecoVenda { get; private set; }
 
-    public int Estoque { get; private set; }
+    public UnidadeMedida UnidadeMedida { get; private set; }
 
-    public int EstoqueMinimo { get; private set; }
+    public decimal Estoque { get; private set; }
+
+    public decimal EstoqueMinimo { get; private set; }
 
     public Guid CategoriaId { get; private set; }
 
@@ -72,19 +83,19 @@ public class Produto : Entity
         PrecoVenda = novoPrecoVenda;
     }
 
-    public void AdicionarEstoque(int quantidade)
+    public void AdicionarEstoque(decimal quantidade)
     {
-        ValidarQuantidadePositiva(quantidade);
+        ValidarQuantidade(quantidade);
 
-        if (quantidade > int.MaxValue - Estoque)
+        if (quantidade > decimal.MaxValue - Estoque)
             throw new DomainException("A quantidade informada excede a capacidade de estoque do produto.");
 
         Estoque += quantidade;
     }
 
-    public void BaixarEstoque(int quantidade)
+    public void BaixarEstoque(decimal quantidade)
     {
-        ValidarQuantidadePositiva(quantidade);
+        ValidarQuantidade(quantidade);
 
         if (quantidade > Estoque)
             throw new EstoqueInsuficienteException(Estoque, quantidade);
@@ -100,10 +111,27 @@ public class Produto : Entity
             throw new DomainException("O preço de venda não pode ser menor que o preço de custo.");
     }
 
-    private static void ValidarQuantidadePositiva(int quantidade)
+    private void ValidarQuantidade(decimal quantidade)
     {
         if (quantidade <= 0)
             throw new DomainException("A quantidade deve ser maior que zero.");
+
+        ValidarPrecisaoDaQuantidade(quantidade, UnidadeMedida);
+    }
+
+    // Unidade: só inteiros. Quilograma e Litro: até 3 casas decimais.
+    private static void ValidarPrecisaoDaQuantidade(decimal quantidade, UnidadeMedida unidadeMedida)
+    {
+        if (unidadeMedida == UnidadeMedida.Unidade)
+        {
+            if (decimal.Truncate(quantidade) != quantidade)
+                throw new DomainException("Produtos vendidos por unidade só aceitam quantidades inteiras.");
+
+            return;
+        }
+
+        if (decimal.Round(quantidade, CasasDecimaisFracionados) != quantidade)
+            throw new DomainException($"A quantidade aceita no máximo {CasasDecimaisFracionados} casas decimais.");
     }
 
     private static string ValidarNome(string? nome)
