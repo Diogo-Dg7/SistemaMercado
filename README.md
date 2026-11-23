@@ -32,7 +32,7 @@ API ──► Application ──► Domain
 |---|---|
 | **S**: Responsabilidade Única | Cada service cuida de um caso de uso; controllers apenas delegam |
 | **O**: Aberto/Fechado | Descontos via `IDescontoStrategy`: nova promoção = nova classe |
-| **L**: Substituição de Liskov | `FormaPagamento` abstrata com `Pix`, `Dinheiro`, `CartaoCredito`... |
+| **L**: Substituição de Liskov | `FormaPagamento` abstrata com `PagamentoPix`, `PagamentoDinheiro`, `PagamentoCartaoCredito`... |
 | **I**: Segregação de Interfaces | Repositórios separados em leitura (`IReadRepository`) e escrita (`IWriteRepository`) |
 | **D**: Inversão de Dependência | Services dependem de interfaces; implementações injetadas pela API |
 

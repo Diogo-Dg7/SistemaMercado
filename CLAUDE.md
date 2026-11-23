@@ -19,7 +19,7 @@ Supermercado/
 │   │   ├── Entities/                   # Produto, Categoria, Cliente, Fornecedor, Venda, ItemVenda, Usuario
 │   │   ├── ValueObjects/               # Dinheiro, CodigoBarras, Cpf, Email
 │   │   ├── Enums/                      # StatusVenda, UnidadeMedida, PerfilUsuario
-│   │   ├── Pagamentos/                 # FormaPagamento (abstrata), Dinheiro, CartaoCredito, CartaoDebito, Pix
+│   │   ├── Pagamentos/                 # FormaPagamento (abstrata), PagamentoDinheiro, PagamentoCartaoCredito, PagamentoCartaoDebito, PagamentoPix
 │   │   ├── Descontos/                  # IDescontoStrategy + implementações
 │   │   ├── Interfaces/                 # Contratos de repositório (IProdutoRepository, IUnitOfWork...)
 │   │   └── Exceptions/                 # DomainException, EstoqueInsuficienteException
@@ -80,7 +80,7 @@ API ──► Application ──► Domain
 ## Princípios SOLID aplicados
 - **S (responsabilidade única):** cada service cuida de um caso de uso (`VendaService` não mexe em estoque diretamente; usa `IEstoqueService`). Controllers só recebem a requisição e delegam.
 - **O (aberto/fechado):** descontos via `IDescontoStrategy` (`DescontoPercentual`, `DescontoLeveXPagueY`, `DescontoClienteFidelidade`). Um desconto novo é uma classe nova, sem alterar `Venda`.
-- **L (substituição de Liskov):** `FormaPagamento` é abstrata; `Dinheiro`, `CartaoCredito`, `CartaoDebito` e `Pix` podem ser usadas em qualquer lugar que espere `FormaPagamento`, sem `if (tipo == ...)`.
+- **L (substituição de Liskov):** `FormaPagamento` é abstrata; `PagamentoDinheiro`, `PagamentoCartaoCredito`, `PagamentoCartaoDebito` e `PagamentoPix` podem ser usadas em qualquer lugar que espere `FormaPagamento`, sem `if (tipo == ...)`.
 - **I (segregação de interfaces):** repositórios divididos em `IReadRepository<T>` e `IWriteRepository<T>`; quem só lê depende só da leitura.
 - **D (inversão de dependência):** services dependem de interfaces (`IProdutoRepository`, `IUnitOfWork`), nunca de classes concretas. Tudo registrado no contêiner de injeção de dependência.
 
