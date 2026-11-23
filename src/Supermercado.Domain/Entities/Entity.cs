@@ -1,3 +1,5 @@
+using Supermercado.Domain.Exceptions;
+
 namespace Supermercado.Domain.Entities;
 
 /// <summary>
@@ -13,7 +15,7 @@ public abstract class Entity : IEquatable<Entity>
     protected Entity(Guid id)
     {
         if (id == Guid.Empty)
-            throw new Exceptions.DomainException("O identificador da entidade não pode ser vazio.");
+            throw new DomainException("O identificador da entidade não pode ser vazio.");
 
         Id = id;
         CriadoEm = DateTime.UtcNow;
