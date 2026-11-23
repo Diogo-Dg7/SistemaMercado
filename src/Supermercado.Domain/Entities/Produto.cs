@@ -50,6 +50,17 @@ public class Produto : Entity
         Estoque = estoqueInicial;
     }
 
+    // Exigido pelo EF Core para materializar a entidade; os valores reais vêm do banco.
+    // Privado: nenhum código de negócio consegue criar um Produto sem passar pelas invariantes.
+    private Produto()
+    {
+        Nome = null!;
+        CodigoBarras = null!;
+        PrecoCusto = null!;
+        PrecoVenda = null!;
+        Categoria = null!;
+    }
+
     public string Nome { get; private set; }
 
     public CodigoBarras CodigoBarras { get; private set; }

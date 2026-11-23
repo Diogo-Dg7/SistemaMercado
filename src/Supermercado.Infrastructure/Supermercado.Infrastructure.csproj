@@ -3,4 +3,7 @@
     <ProjectReference Include="..\Supermercado.Domain\Supermercado.Domain.csproj" />
     <ProjectReference Include="..\Supermercado.Application\Supermercado.Application.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.15" />
+  </ItemGroup>
 </Project>

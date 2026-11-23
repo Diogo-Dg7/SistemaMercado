@@ -5,7 +5,7 @@ Sistema de gestão de supermercado: cadastro de produtos e categorias, controle 
 clientes, fornecedores e PDV (vendas com descontos e várias formas de pagamento).
 
 - **Backend:** C# / ASP.NET Core Web API (.NET 10), arquitetura em camadas (Clean Architecture)
-- **Banco:** SQL Server ou PostgreSQL via Entity Framework Core
+- **Banco:** SQL Server via Entity Framework Core
 - **Frontend:** React + TypeScript + Vite
 - **Testes:** xUnit + FluentAssertions + NSubstitute (backend), Vitest + Testing Library (frontend)
 
