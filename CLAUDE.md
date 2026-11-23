@@ -109,7 +109,7 @@ API ──► Application ──► Domain
 ```bash
 dotnet build
 dotnet test
-dotnet ef migrations add <Nome> -p src/Supermercado.Infrastructure -s src/Supermercado.API
+dotnet ef migrations add <Nome> -p src/Supermercado.Infrastructure -s src/Supermercado.API -o Data/Migrations
 dotnet ef database update -p src/Supermercado.Infrastructure -s src/Supermercado.API
 dotnet run --project src/Supermercado.API
 

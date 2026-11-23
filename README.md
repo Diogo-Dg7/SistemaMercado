@@ -38,12 +38,51 @@ API ──► Application ──► Domain
 
 ## Tecnologias
 - .NET 10 / ASP.NET Core Web API
-- Entity Framework Core
+- Entity Framework Core + SQL Server
 - xUnit, FluentAssertions, NSubstitute
 - React, TypeScript, Vite
 
+## Banco de dados
+
+O sistema usa **SQL Server** via Entity Framework Core. A connection string é lida da chave
+`ConnectionStrings:Supermercado`.
+
+### 1. Configurar a connection string
+Em [`src/Supermercado.API/appsettings.json`](./src/Supermercado.API/appsettings.json) ajuste o `Server=` para a
+sua instância (por exemplo `.\SQLEXPRESS` ou `(localdb)\MSSQLLocalDB`). O padrão usa a autenticação do Windows:
+
+```
+Server=SUA_INSTANCIA;Database=Supermercado;Trusted_Connection=True;TrustServerCertificate=True
+```
+
+> **Usa login e senha do SQL Server?** Nunca coloque credenciais no `appsettings.json` (ele vai para o Git).
+> Guarde a connection string completa com `dotnet user-secrets`, que fica fora do repositório:
+>
+> ```bash
+> cd src/Supermercado.API
+> dotnet user-secrets init
+> dotnet user-secrets set "ConnectionStrings:Supermercado" "Server=SUA_INSTANCIA;Database=Supermercado;User Id=SEU_USUARIO;Password=SUA_SENHA;TrustServerCertificate=True"
+> ```
+>
+> Os user-secrets têm precedência sobre o `appsettings.json` e são carregados no ambiente `Development`.
+
+### 2. Aplicar a migration
+A ferramenta `dotnet-ef` está versionada em `dotnet-tools.json`, então basta restaurá-la:
+
+```bash
+dotnet tool restore
+dotnet ef database update -p src/Supermercado.Infrastructure -s src/Supermercado.API
+```
+
+Isso cria o banco `Supermercado` (se não existir) e todas as tabelas. Para criar uma nova migration depois de
+alterar o domínio:
+
+```bash
+dotnet ef migrations add <Nome> -p src/Supermercado.Infrastructure -s src/Supermercado.API -o Data/Migrations
+```
+
 ## Como executar
-Pré-requisito: [.NET 10 SDK](https://dotnet.microsoft.com/download).
+Pré-requisitos: [.NET 10 SDK](https://dotnet.microsoft.com/download) e uma instância do SQL Server (a edição Express serve).
 
 ```bash
 dotnet build

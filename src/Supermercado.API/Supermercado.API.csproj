@@ -3,4 +3,10 @@
     <ProjectReference Include="..\Supermercado.Application\Supermercado.Application.csproj" />
     <ProjectReference Include="..\Supermercado.Infrastructure\Supermercado.Infrastructure.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.15">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
 </Project>

@@ -1,8 +1,15 @@
+using Supermercado.API.Services;
+using Supermercado.Application;
+using Supermercado.Application.Interfaces;
+using Supermercado.Infrastructure;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// As camadas serão registradas aqui conforme forem implementadas:
-// builder.Services.AddApplication();
-// builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddApplication();
+builder.Services.AddInfrastructure(builder.Configuration);
+
+// TODO: trocar pela implementação baseada em JWT quando a autenticação for criada.
+builder.Services.AddScoped<IUsuarioAtual, UsuarioAtualProvisorio>();
 
 builder.Services.AddControllers();
 
