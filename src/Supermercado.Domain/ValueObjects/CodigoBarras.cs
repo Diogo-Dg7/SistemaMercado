@@ -11,24 +11,45 @@ public sealed record CodigoBarras
 
     public CodigoBarras(string valor)
     {
-        var normalizado = valor?.Trim();
+        var erro = Validar(valor, out var normalizado);
 
-        if (string.IsNullOrEmpty(normalizado))
-            throw new DomainException("O código de barras é obrigatório.");
+        if (erro is not null)
+            throw new DomainException(erro);
 
-        if (!normalizado.All(char.IsAsciiDigit))
-            throw new DomainException("O código de barras deve conter apenas dígitos.");
-
-        if (!TamanhosValidos.Contains(normalizado.Length))
-            throw new DomainException("O código de barras deve ter 8, 12, 13 ou 14 dígitos.");
-
-        if (!DigitoVerificadorValido(normalizado))
-            throw new DomainException("O dígito verificador do código de barras é inválido.");
-
-        Valor = normalizado;
+        Valor = normalizado!;
     }
 
     public string Valor { get; }
+
+    /// <summary>
+    /// Tenta criar o código sem lançar exceção; <paramref name="erro"/> traz o motivo da recusa.
+    /// Permite que camadas externas validem usando a mesma regra e mensagens do domínio.
+    /// </summary>
+    public static bool TryCriar(string? valor, out CodigoBarras? codigo, out string? erro)
+    {
+        erro = Validar(valor, out var normalizado);
+        codigo = erro is null ? new CodigoBarras(normalizado!) : null;
+        return erro is null;
+    }
+
+    private static string? Validar(string? valor, out string? normalizado)
+    {
+        normalizado = valor?.Trim();
+
+        if (string.IsNullOrEmpty(normalizado))
+            return "O código de barras é obrigatório.";
+
+        if (!normalizado.All(char.IsAsciiDigit))
+            return "O código de barras deve conter apenas dígitos.";
+
+        if (!TamanhosValidos.Contains(normalizado.Length))
+            return "O código de barras deve ter 8, 12, 13 ou 14 dígitos.";
+
+        if (!DigitoVerificadorValido(normalizado))
+            return "O dígito verificador do código de barras é inválido.";
+
+        return null;
+    }
 
     // Algoritmo GTIN: da direita para a esquerda (sem o verificador), pesos alternados 3 e 1.
     private static bool DigitoVerificadorValido(string codigo)

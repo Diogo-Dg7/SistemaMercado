@@ -65,6 +65,28 @@ public class CodigoBarrasTests
     }
 
     [Fact]
+    public void TryCriar_deve_retornar_codigo_para_valor_valido()
+    {
+        CodigoBarras.TryCriar(" 4006381333931 ", out var codigo, out var erro).Should().BeTrue();
+
+        codigo.Should().Be(new CodigoBarras("4006381333931"));
+        erro.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(null, "obrigatório")]
+    [InlineData("12AB5678", "dígitos")]
+    [InlineData("1234567", "8, 12, 13 ou 14")]
+    [InlineData("96385075", "verificador")]
+    public void TryCriar_deve_retornar_motivo_para_valor_invalido(string? valor, string trechoDoErro)
+    {
+        CodigoBarras.TryCriar(valor, out var codigo, out var erro).Should().BeFalse();
+
+        codigo.Should().BeNull();
+        erro.Should().Contain(trechoDoErro);
+    }
+
+    [Fact]
     public void Records_com_mesmo_valor_devem_ser_iguais()
     {
         new CodigoBarras("4006381333931").Should().Be(new CodigoBarras("4006381333931"));
