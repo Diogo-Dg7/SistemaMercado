@@ -40,7 +40,7 @@ Supermercado/
 │   │
 │   └── Supermercado.API/               # Porta de entrada HTTP
 │       ├── Controllers/                # ProdutosController, VendasController...
-│       ├── Middlewares/                # ExceptionHandlingMiddleware
+│       ├── ExceptionHandlers/          # GlobalExceptionHandler (IExceptionHandler -> ProblemDetails)
 │       ├── Program.cs
 │       └── appsettings.json
 │
@@ -102,7 +102,7 @@ API ──► Application ──► Domain
 - Nomes de domínio em português (Produto, Venda), sufixos técnicos em inglês (Repository, Service, Controller, Dto).
 - `async/await` em todo I/O, com `CancellationToken`.
 - Nunca retornar entidades no controller; sempre DTOs.
-- Erros de domínio tratados no `ExceptionHandlingMiddleware`, retornando `ProblemDetails`.
+- Erros tratados no `GlobalExceptionHandler` (`IExceptionHandler` + `AddProblemDetails`), sempre como `ProblemDetails`: `ValidationException` 400, `RecursoNaoEncontradoException` 404, `EstoqueInsuficienteException` e `ConflitoDeConcorrenciaException` 409, `DomainException` 422, demais 500 (sem expor detalhes; o erro vai para o log).
 - Frontend: componentes funcionais, hooks, TypeScript estrito, sem `any`.
 
 ## Comandos

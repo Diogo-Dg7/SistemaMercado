@@ -1,3 +1,4 @@
+using Supermercado.API.ExceptionHandlers;
 using Supermercado.API.Services;
 using Supermercado.Application;
 using Supermercado.Application.Interfaces;
@@ -13,8 +14,14 @@ builder.Services.AddScoped<IUsuarioAtual, UsuarioAtualProvisorio>();
 
 builder.Services.AddControllers();
 
+// Erros viram ProblemDetails (RFC 9457) pelo GlobalExceptionHandler.
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+
 var app = builder.Build();
 
+app.UseExceptionHandler();
+app.UseStatusCodePages(); // respostas sem corpo (404 de rota, 405, 415...) também saem como ProblemDetails
 app.UseHttpsRedirection();
 app.MapControllers();
 
