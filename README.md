@@ -43,6 +43,15 @@ API ──► Application ──► Domain
 - React, TypeScript, Vite
 
 ## Como executar
-> Instruções serão adicionadas conforme os módulos forem implementados.
+Pré-requisito: [.NET 10 SDK](https://dotnet.microsoft.com/download).
+
+```bash
+dotnet build
+dotnet test
+dotnet run --project src/Supermercado.API
+# teste rápido: GET https://localhost:7001/health
+```
+
+> Instruções do frontend serão adicionadas quando ele for criado.
 
 Detalhes completos da arquitetura e das convenções estão no [CLAUDE.md](./CLAUDE.md).

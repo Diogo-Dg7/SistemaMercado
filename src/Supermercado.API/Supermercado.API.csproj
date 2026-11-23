@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <ProjectReference Include="..\Supermercado.Application\Supermercado.Application.csproj" />
+    <ProjectReference Include="..\Supermercado.Infrastructure\Supermercado.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

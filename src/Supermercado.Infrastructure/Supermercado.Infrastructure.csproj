@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\Supermercado.Domain\Supermercado.Domain.csproj" />
+    <ProjectReference Include="..\Supermercado.Application\Supermercado.Application.csproj" />
+  </ItemGroup>
+</Project>
