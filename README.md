@@ -99,6 +99,29 @@ dotnet run --project src/Supermercado.API
 # teste rápido: GET https://localhost:7001/health
 ```
 
+## API
+
+Em `Development`, a documentação interativa (Scalar) fica em <https://localhost:7001/scalar> e o documento OpenAPI em
+`/openapi/v1.json`. O CORS libera apenas o front em `http://localhost:5173` (Vite) e também só em `Development`.
+
+| Método | Rota | Descrição |
+|---|---|---|
+| POST / GET | `/api/categorias` | Cria / lista categorias |
+| GET | `/api/categorias/{id}` | Obtém uma categoria |
+| POST / GET | `/api/produtos` | Cria / lista produtos |
+| GET | `/api/produtos/{id}` | Obtém um produto |
+| PUT | `/api/produtos/{id}/preco` | Atualiza custo e venda |
+| POST | `/api/produtos/{id}/estoque/entrada` | Entrada de estoque |
+| POST | `/api/produtos/{id}/estoque/saida` | Saída de estoque |
+| GET | `/api/produtos/abaixo-estoque-minimo` | Alerta de reposição |
+
+Erros sempre voltam como `application/problem+json`: **400** validação (com os erros por campo em `errors`),
+**404** recurso inexistente, **409** estoque insuficiente ou conflito de concorrência (outra operação alterou o
+mesmo registro: releia e tente de novo), **422** regra de negócio violada e **500** erro inesperado (sem detalhes
+internos; o erro vai para o log).
+
+> Enquanto a autenticação JWT não existe, toda requisição é tratada como perfil **Operador**.
+
 > Instruções do frontend serão adicionadas quando ele for criado.
 
 Detalhes completos da arquitetura e das convenções estão no [CLAUDE.md](./CLAUDE.md).
