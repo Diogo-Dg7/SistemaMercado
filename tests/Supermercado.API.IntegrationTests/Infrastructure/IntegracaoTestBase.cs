@@ -24,7 +24,7 @@ public abstract class IntegracaoTestBase : IAsyncLifetime
 
     public Task InitializeAsync() => Banco.LimparTabelasAsync();
 
-    public Task DisposeAsync() => Task.CompletedTask;
+    public virtual Task DisposeAsync() => Task.CompletedTask;
 
     protected async Task<Categoria> SalvarCategoriaAsync(string nome = "Bebidas")
     {

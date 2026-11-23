@@ -21,6 +21,8 @@ public sealed class BancoDeDadosFixture : IAsyncLifetime
 
     private readonly ServiceProvider _provider;
 
+    public string ConnectionString { get; }
+
     public BancoDeDadosFixture()
     {
         var configuracao = new ConfigurationBuilder()
@@ -31,6 +33,8 @@ public sealed class BancoDeDadosFixture : IAsyncLifetime
 
         var connectionString = configuracao.GetConnectionString("SupermercadoTestes")
             ?? throw new InvalidOperationException("Defina ConnectionStrings:SupermercadoTestes para os testes de integração.");
+
+        ConnectionString = connectionString;
 
         // Trava de segurança: este fixture apaga o banco; nunca pode apontar para o banco real.
         var banco = new SqlConnectionStringBuilder(connectionString).InitialCatalog;
