@@ -48,16 +48,15 @@ public class CategoriaRepositoryTests : IntegracaoTestBase
     }
 
     [Fact]
-    public async Task Atualizar_deve_persistir_o_novo_nome()
+    public async Task Alterar_deve_persistir_o_novo_nome()
     {
         var original = await SalvarCategoriaAsync("Bebidas");
 
         using (var escopo = Banco.NovoEscopo())
         {
             var repositorio = escopo.ServiceProvider.GetRequiredService<ICategoriaRepository>();
-            var categoria = (await repositorio.ObterPorIdAsync(original.Id))!;
+            var categoria = (await repositorio.ObterParaAlteracaoAsync(original.Id))!;
             categoria.Renomear("Bebidas e sucos");
-            repositorio.Atualizar(categoria);
             await escopo.ServiceProvider.GetRequiredService<IUnitOfWork>().SalvarAlteracoesAsync();
         }
 

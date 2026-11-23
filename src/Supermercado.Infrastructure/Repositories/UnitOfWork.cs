@@ -1,5 +1,6 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Supermercado.Application.Exceptions;
 using Supermercado.Domain.Exceptions;
 using Supermercado.Domain.Interfaces;
 using Supermercado.Infrastructure.Data;
@@ -25,6 +26,11 @@ public class UnitOfWork : IUnitOfWork
         try
         {
             return await _context.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            // Outra operação alterou o mesmo registro depois da nossa leitura (RowVersion não confere).
+            throw new ConflitoDeConcorrenciaException(ex);
         }
         catch (DbUpdateException ex) when (ViolaCodigoBarrasUnico(ex))
         {

@@ -12,6 +12,8 @@ namespace Supermercado.Application.Services;
 
 public class ProdutoService : IProdutoService
 {
+    private const string NomeRecurso = "Produto";
+
     private readonly IProdutoRepository _produtos;
     private readonly ICategoriaRepository _categorias;
     private readonly IUnitOfWork _unitOfWork;
@@ -42,7 +44,8 @@ public class ProdutoService : IProdutoService
     {
         await _criarValidator.ValidateAndThrowAsync(request, cancellationToken);
 
-        var categoria = await _categorias.ObterPorIdAsync(request.CategoriaId, cancellationToken)
+        // Com rastreamento: o contexto precisa saber que a categoria já existe ao inserir o produto.
+        var categoria = await _categorias.ObterParaAlteracaoAsync(request.CategoriaId, cancellationToken)
             ?? throw new RecursoNaoEncontradoException("Categoria", request.CategoriaId);
 
         var codigoBarras = new CodigoBarras(request.CodigoBarras);
@@ -75,7 +78,8 @@ public class ProdutoService : IProdutoService
 
     public async Task<ProdutoDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var produto = await ObterProdutoAsync(id, cancellationToken);
+        var produto = await _produtos.ObterPorIdAsync(id, cancellationToken)
+            ?? throw new RecursoNaoEncontradoException(NomeRecurso, id);
 
         return produto.ToDto();
     }
@@ -85,7 +89,7 @@ public class ProdutoService : IProdutoService
     {
         await _atualizarPrecoValidator.ValidateAndThrowAsync(request, cancellationToken);
 
-        var produto = await ObterProdutoAsync(id, cancellationToken);
+        var produto = await ObterProdutoParaAlteracaoAsync(id, cancellationToken);
 
         produto.AtualizarPreco(
             new Dinheiro(request.PrecoCusto),
@@ -118,20 +122,21 @@ public class ProdutoService : IProdutoService
     {
         await _movimentarEstoqueValidator.ValidateAndThrowAsync(request, cancellationToken);
 
-        var produto = await ObterProdutoAsync(id, cancellationToken);
+        var produto = await ObterProdutoParaAlteracaoAsync(id, cancellationToken);
 
         movimentar(produto, request.Quantidade);
 
         return await SalvarAsync(produto, cancellationToken);
     }
 
-    private async Task<Produto> ObterProdutoAsync(Guid id, CancellationToken cancellationToken) =>
-        await _produtos.ObterPorIdAsync(id, cancellationToken)
-        ?? throw new RecursoNaoEncontradoException("Produto", id);
+    // Fluxos de escrita leem COM rastreamento: o change tracker detecta o que o domínio alterou e a
+    // gravação é protegida pelo controle de concorrência (sem "Atualizar" explícito).
+    private async Task<Produto> ObterProdutoParaAlteracaoAsync(Guid id, CancellationToken cancellationToken) =>
+        await _produtos.ObterParaAlteracaoAsync(id, cancellationToken)
+        ?? throw new RecursoNaoEncontradoException(NomeRecurso, id);
 
     private async Task<ProdutoDto> SalvarAsync(Produto produto, CancellationToken cancellationToken)
     {
-        _produtos.Atualizar(produto);
         await _unitOfWork.SalvarAlteracoesAsync(cancellationToken);
 
         return produto.ToDto();

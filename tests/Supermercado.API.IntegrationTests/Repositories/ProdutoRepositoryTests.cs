@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Supermercado.API.IntegrationTests.Infrastructure;
+using Supermercado.Application.Exceptions;
 using Supermercado.Domain.Entities;
 using Supermercado.Domain.Enums;
 using Supermercado.Domain.Exceptions;
@@ -144,10 +145,10 @@ public class ProdutoRepositoryTests : IntegracaoTestBase
         produtos.Should().ContainSingle().Which.Nome.Should().Be("Original");
     }
 
-    // ---------- Atualizar e remover ----------
+    // ---------- Alteração (leitura rastreada) ----------
 
     [Fact]
-    public async Task Atualizar_deve_persistir_as_alteracoes_feitas_pelo_dominio()
+    public async Task Alterar_deve_persistir_as_mudancas_detectadas_pelo_change_tracker()
     {
         var categoria = await SalvarCategoriaAsync();
         var original = await SalvarProdutoAsync(categoria, c => NovoProduto(c, custo: 5m, venda: 8m, estoque: 20m));
@@ -155,16 +156,15 @@ public class ProdutoRepositoryTests : IntegracaoTestBase
         using (var escopo = Banco.NovoEscopo())
         {
             var repositorio = escopo.ServiceProvider.GetRequiredService<IProdutoRepository>();
-            var produto = (await repositorio.ObterPorIdAsync(original.Id))!;
+            var produto = (await repositorio.ObterParaAlteracaoAsync(original.Id))!;
 
             produto.AtualizarPreco(new Dinheiro(10m), new Dinheiro(9m), PerfilUsuario.Gerente);
             produto.BaixarEstoque(7m);
-            repositorio.Atualizar(produto);
 
-            // Só o produto deve ser tocado; a Categoria (já existente) não pode ser reescrita.
+            // Sem "Atualizar": o contexto já sabe que só o produto mudou; a Categoria segue intacta.
             var contexto = escopo.ServiceProvider.GetRequiredService<SupermercadoDbContext>();
-            contexto.ChangeTracker.Entries<Categoria>().Should().NotContain(
-                e => e.State == EntityState.Modified || e.State == EntityState.Added);
+            contexto.ChangeTracker.Entries<Produto>().Single().State.Should().Be(EntityState.Modified);
+            contexto.ChangeTracker.Entries<Categoria>().Should().OnlyContain(e => e.State == EntityState.Unchanged);
 
             await escopo.ServiceProvider.GetRequiredService<IUnitOfWork>().SalvarAlteracoesAsync();
         }
@@ -179,7 +179,7 @@ public class ProdutoRepositoryTests : IntegracaoTestBase
     }
 
     [Fact]
-    public async Task Atualizar_o_mesmo_produto_duas_vezes_no_mesmo_escopo_deve_persistir_as_duas_alteracoes()
+    public async Task Alterar_o_mesmo_produto_duas_vezes_em_sequencia_no_mesmo_escopo_deve_persistir_as_duas_alteracoes()
     {
         var categoria = await SalvarCategoriaAsync();
         var original = await SalvarProdutoAsync(categoria, c => NovoProduto(c, estoque: 20m));
@@ -189,16 +189,14 @@ public class ProdutoRepositoryTests : IntegracaoTestBase
             var repositorio = escopo.ServiceProvider.GetRequiredService<IProdutoRepository>();
             var unitOfWork = escopo.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            // Cada leitura devolve uma instância nova (sem rastreamento), com o mesmo Id.
-            var primeira = (await repositorio.ObterPorIdAsync(original.Id))!;
+            var primeira = (await repositorio.ObterParaAlteracaoAsync(original.Id))!;
             primeira.BaixarEstoque(5m);
-            repositorio.Atualizar(primeira);
             await unitOfWork.SalvarAlteracoesAsync();
 
-            var segunda = (await repositorio.ObterPorIdAsync(original.Id))!;
-            segunda.Should().NotBeSameAs(primeira);
+            // Mesma instância rastreada; o RowVersion foi renovado pelo primeiro SaveChanges.
+            var segunda = (await repositorio.ObterParaAlteracaoAsync(original.Id))!;
+            segunda.Should().BeSameAs(primeira);
             segunda.BaixarEstoque(3m);
-            repositorio.Atualizar(segunda);
             await unitOfWork.SalvarAlteracoesAsync();
         }
 
@@ -208,7 +206,90 @@ public class ProdutoRepositoryTests : IntegracaoTestBase
     }
 
     [Fact]
-    public async Task Adicionar_produto_com_categoria_ja_rastreada_no_mesmo_escopo_deve_funcionar()
+    public async Task Ler_o_mesmo_produto_duas_vezes_antes_do_SaveChanges_deve_devolver_a_mesma_instancia()
+    {
+        var categoria = await SalvarCategoriaAsync();
+        var original = await SalvarProdutoAsync(categoria, c => NovoProduto(c, estoque: 20m));
+
+        using (var escopo = Banco.NovoEscopo())
+        {
+            var repositorio = escopo.ServiceProvider.GetRequiredService<IProdutoRepository>();
+
+            var primeira = (await repositorio.ObterParaAlteracaoAsync(original.Id))!;
+            var segunda = (await repositorio.ObterParaAlteracaoAsync(original.Id))!;
+            segunda.Should().BeSameAs(primeira);
+
+            primeira.BaixarEstoque(5m);
+            segunda.BaixarEstoque(3m); // mesma entidade: as duas baixas se acumulam
+            await escopo.ServiceProvider.GetRequiredService<IUnitOfWork>().SalvarAlteracoesAsync();
+        }
+
+        using var leitura = Banco.NovoEscopo();
+        (await leitura.ServiceProvider.GetRequiredService<IProdutoRepository>().ObterPorIdAsync(original.Id))!
+            .Estoque.Should().Be(12m);
+    }
+
+    [Fact]
+    public async Task Alteracoes_concorrentes_em_contextos_diferentes_a_segunda_deve_falhar_com_ConflitoDeConcorrencia()
+    {
+        var categoria = await SalvarCategoriaAsync();
+        var original = await SalvarProdutoAsync(categoria, c => NovoProduto(c, estoque: 20m));
+
+        // Dois caixas leem o mesmo produto (estoque 20), cada um no seu contexto.
+        using var caixa1 = Banco.NovoEscopo();
+        using var caixa2 = Banco.NovoEscopo();
+        var produto1 = (await caixa1.ServiceProvider.GetRequiredService<IProdutoRepository>()
+            .ObterParaAlteracaoAsync(original.Id))!;
+        var produto2 = (await caixa2.ServiceProvider.GetRequiredService<IProdutoRepository>()
+            .ObterParaAlteracaoAsync(original.Id))!;
+
+        produto1.BaixarEstoque(5m); // 20 -> 15
+        await caixa1.ServiceProvider.GetRequiredService<IUnitOfWork>().SalvarAlteracoesAsync();
+
+        produto2.BaixarEstoque(3m); // calculado sobre o 20 já defasado; sem controle gravaria 17 e perderia a venda do caixa 1
+        var act = () => caixa2.ServiceProvider.GetRequiredService<IUnitOfWork>().SalvarAlteracoesAsync();
+
+        await act.Should().ThrowAsync<ConflitoDeConcorrenciaException>();
+
+        using var leitura = Banco.NovoEscopo();
+        (await leitura.ServiceProvider.GetRequiredService<IProdutoRepository>().ObterPorIdAsync(original.Id))!
+            .Estoque.Should().Be(15m, "a venda do primeiro caixa não pode ser sobrescrita");
+    }
+
+    [Fact]
+    public async Task Depois_de_um_conflito_reler_e_repetir_a_operacao_deve_funcionar()
+    {
+        var categoria = await SalvarCategoriaAsync();
+        var original = await SalvarProdutoAsync(categoria, c => NovoProduto(c, estoque: 20m));
+
+        using var caixa1 = Banco.NovoEscopo();
+        using var caixa2 = Banco.NovoEscopo();
+        var produto1 = (await caixa1.ServiceProvider.GetRequiredService<IProdutoRepository>()
+            .ObterParaAlteracaoAsync(original.Id))!;
+        var produto2 = (await caixa2.ServiceProvider.GetRequiredService<IProdutoRepository>()
+            .ObterParaAlteracaoAsync(original.Id))!;
+        produto1.BaixarEstoque(5m);
+        await caixa1.ServiceProvider.GetRequiredService<IUnitOfWork>().SalvarAlteracoesAsync();
+        produto2.BaixarEstoque(3m);
+        var conflito = () => caixa2.ServiceProvider.GetRequiredService<IUnitOfWork>().SalvarAlteracoesAsync();
+        await conflito.Should().ThrowAsync<ConflitoDeConcorrenciaException>();
+
+        // O cliente reenvia a requisição: novo escopo, leitura atualizada (15), baixa de 3.
+        using (var retentativa = Banco.NovoEscopo())
+        {
+            var produto = (await retentativa.ServiceProvider.GetRequiredService<IProdutoRepository>()
+                .ObterParaAlteracaoAsync(original.Id))!;
+            produto.BaixarEstoque(3m);
+            await retentativa.ServiceProvider.GetRequiredService<IUnitOfWork>().SalvarAlteracoesAsync();
+        }
+
+        using var leitura = Banco.NovoEscopo();
+        (await leitura.ServiceProvider.GetRequiredService<IProdutoRepository>().ObterPorIdAsync(original.Id))!
+            .Estoque.Should().Be(12m);
+    }
+
+    [Fact]
+    public async Task Adicionar_produto_com_categoria_rastreada_no_mesmo_escopo_deve_funcionar()
     {
         Guid produtoId;
 
@@ -219,11 +300,11 @@ public class ProdutoRepositoryTests : IntegracaoTestBase
             var unitOfWork = escopo.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
             var nova = new Categoria("Padaria");
-            await categorias.AdicionarAsync(nova); // fica rastreada pelo contexto
+            await categorias.AdicionarAsync(nova);
             await unitOfWork.SalvarAlteracoesAsync();
 
-            var lida = (await categorias.ObterPorIdAsync(nova.Id))!; // outra instância, mesmo Id
-            lida.Should().NotBeSameAs(nova);
+            var lida = (await categorias.ObterParaAlteracaoAsync(nova.Id))!;
+            lida.Should().BeSameAs(nova); // rastreada: mesma instância
 
             var produto = NovoProduto(lida);
             produtoId = produto.Id;
@@ -247,7 +328,7 @@ public class ProdutoRepositoryTests : IntegracaoTestBase
         using (var escopo = Banco.NovoEscopo())
         {
             var repositorio = escopo.ServiceProvider.GetRequiredService<IProdutoRepository>();
-            repositorio.Remover((await repositorio.ObterPorIdAsync(produto.Id))!);
+            repositorio.Remover((await repositorio.ObterParaAlteracaoAsync(produto.Id))!);
             await escopo.ServiceProvider.GetRequiredService<IUnitOfWork>().SalvarAlteracoesAsync();
         }
 
@@ -272,7 +353,17 @@ public class ProdutoRepositoryTests : IntegracaoTestBase
         await repositorio.ListarAsync();
         await repositorio.ListarAbaixoDoEstoqueMinimoAsync();
 
-        escopo.ServiceProvider.GetRequiredService<SupermercadoDbContext>().ChangeTracker.Entries().Should().BeEmpty();
+        var contexto = escopo.ServiceProvider.GetRequiredService<SupermercadoDbContext>();
+        contexto.ChangeTracker.Entries().Should().BeEmpty();
+
+        await repositorio.ObterParaAlteracaoAsync(produto.Id);
+        contexto.ChangeTracker.Entries<Produto>().Should().ContainSingle(); // só a leitura para alteração rastreia
+    }
+
+    [Fact]
+    public void Token_de_concorrencia_nao_deve_poluir_o_dominio()
+    {
+        typeof(Produto).GetProperty("RowVersion").Should().BeNull();
     }
 
     [Fact]
@@ -299,6 +390,7 @@ public class ProdutoRepositoryTests : IntegracaoTestBase
         Coluna("PrecoVenda").Should().Match<ColunaDoBanco>(c => c.Tipo == "decimal" && c.Precisao == 18 && c.Escala == 2);
         Coluna("Estoque").Should().Match<ColunaDoBanco>(c => c.Tipo == "decimal" && c.Precisao == 18 && c.Escala == 3);
         Coluna("EstoqueMinimo").Should().Match<ColunaDoBanco>(c => c.Tipo == "decimal" && c.Precisao == 18 && c.Escala == 3);
+        Coluna("RowVersion").Tipo.Should().Be("timestamp"); // rowversion
         Coluna("CodigoBarras").Should().Match<ColunaDoBanco>(c => c.Tipo == "varchar" && c.Tamanho == 14);
 
         var unidadeSalva = await contexto.Database

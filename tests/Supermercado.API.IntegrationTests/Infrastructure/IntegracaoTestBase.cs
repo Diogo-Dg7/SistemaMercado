@@ -38,14 +38,14 @@ public abstract class IntegracaoTestBase : IAsyncLifetime
     }
 
     /// <summary>
-    /// Persiste o produto como a Application faz: a Categoria vem de uma leitura sem rastreamento
-    /// (entidade desanexada) e o produto é adicionado em seguida.
+    /// Persiste o produto como a Application faz: a Categoria vem de uma leitura para alteração
+    /// (rastreada) e o produto é adicionado em seguida.
     /// </summary>
     protected async Task<Produto> SalvarProdutoAsync(Categoria categoria, Func<Categoria, Produto> criar)
     {
         using var escopo = Banco.NovoEscopo();
         var categoriaLida = await escopo.ServiceProvider.GetRequiredService<ICategoriaRepository>()
-            .ObterPorIdAsync(categoria.Id);
+            .ObterParaAlteracaoAsync(categoria.Id);
         var produto = criar(categoriaLida!);
 
         await escopo.ServiceProvider.GetRequiredService<IProdutoRepository>().AdicionarAsync(produto);

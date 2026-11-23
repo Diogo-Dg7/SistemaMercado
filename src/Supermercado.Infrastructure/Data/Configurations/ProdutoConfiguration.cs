@@ -44,6 +44,12 @@ public class ProdutoConfiguration : IEntityTypeConfiguration<Produto>
         builder.Property(p => p.CriadoEm)
             .IsRequired();
 
+        // Token de concorrência otimista (rowversion). Shadow property: existe só no banco e no EF,
+        // o Domain não sabe dele. Evita o "lost update" (dois caixas gravando estoque sobre o mesmo valor lido).
+        builder.Property<byte[]>("RowVersion")
+            .IsRowVersion()
+            .IsRequired();
+
         builder.HasOne(p => p.Categoria)
             .WithMany()
             .HasForeignKey(p => p.CategoriaId)

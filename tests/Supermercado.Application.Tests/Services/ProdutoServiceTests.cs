@@ -26,7 +26,7 @@ public class ProdutoServiceTests
     public ProdutoServiceTests()
     {
         _usuarioAtual.Perfil.Returns(PerfilUsuario.Operador);
-        _categorias.ObterPorIdAsync(_categoria.Id, Arg.Any<CancellationToken>()).Returns(_categoria);
+        _categorias.ObterParaAlteracaoAsync(_categoria.Id, Arg.Any<CancellationToken>()).Returns(_categoria);
 
         _service = new ProdutoService(
             _produtos,
@@ -49,6 +49,7 @@ public class ProdutoServiceTests
             "Refrigerante 2L", new CodigoBarras(CodigoValido), new Dinheiro(custo), new Dinheiro(venda),
             _categoria, unidade, estoqueMinimo, estoque);
         _produtos.ObterPorIdAsync(produto.Id, Arg.Any<CancellationToken>()).Returns(produto);
+        _produtos.ObterParaAlteracaoAsync(produto.Id, Arg.Any<CancellationToken>()).Returns(produto);
         return produto;
     }
 
@@ -57,6 +58,13 @@ public class ProdutoServiceTests
 
     private async Task DeveTerSalvadoUmaVez() =>
         await _unitOfWork.Received(1).SalvarAlteracoesAsync(Arg.Any<CancellationToken>());
+
+    // Fluxos de escrita leem COM rastreamento (para o change tracker detectar as mudanças) e nunca via leitura sem rastreamento.
+    private async Task UsouLeituraParaAlteracaoAsync(Produto produto)
+    {
+        await _produtos.Received(1).ObterParaAlteracaoAsync(produto.Id, Arg.Any<CancellationToken>());
+        await _produtos.DidNotReceiveWithAnyArgs().ObterPorIdAsync(default, default);
+    }
 
     private async Task NaoDeveTerSalvado() =>
         await _unitOfWork.DidNotReceiveWithAnyArgs().SalvarAlteracoesAsync(default);
@@ -79,6 +87,7 @@ public class ProdutoServiceTests
         dto.AbaixoDoEstoqueMinimo.Should().BeFalse();
         await _produtos.Received(1).AdicionarAsync(
             Arg.Is<Produto>(p => p.Id == dto.Id), Arg.Any<CancellationToken>());
+        await _categorias.Received(1).ObterParaAlteracaoAsync(_categoria.Id, Arg.Any<CancellationToken>());
         await DeveTerSalvadoUmaVez();
     }
 
@@ -86,7 +95,7 @@ public class ProdutoServiceTests
     public async Task Criar_com_categoria_inexistente_deve_lancar_RecursoNaoEncontradoException()
     {
         var idInexistente = Guid.NewGuid();
-        _categorias.ObterPorIdAsync(idInexistente, Arg.Any<CancellationToken>()).Returns((Categoria?)null);
+        _categorias.ObterParaAlteracaoAsync(idInexistente, Arg.Any<CancellationToken>()).Returns((Categoria?)null);
 
         var act = () => _service.CriarAsync(RequestValido(categoriaId: idInexistente));
 
@@ -151,6 +160,7 @@ public class ProdutoServiceTests
 
         dto.Id.Should().Be(produto.Id);
         dto.Nome.Should().Be("Refrigerante 2L");
+        await _produtos.DidNotReceiveWithAnyArgs().ObterParaAlteracaoAsync(default, default);
     }
 
     [Fact]
@@ -175,7 +185,7 @@ public class ProdutoServiceTests
 
         dto.PrecoCusto.Should().Be(6m);
         dto.PrecoVenda.Should().Be(9m);
-        _produtos.Received(1).Atualizar(produto);
+        await UsouLeituraParaAlteracaoAsync(produto);
         await DeveTerSalvadoUmaVez();
     }
 
@@ -189,7 +199,7 @@ public class ProdutoServiceTests
 
         await act.Should().ThrowAsync<DomainException>().WithMessage("*menor que o preço de custo*");
         produto.PrecoVenda.Valor.Should().Be(8m);
-        _produtos.DidNotReceiveWithAnyArgs().Atualizar(default!);
+        await _produtos.DidNotReceiveWithAnyArgs().ObterPorIdAsync(default, default);
         await NaoDeveTerSalvado();
     }
 
@@ -210,7 +220,7 @@ public class ProdutoServiceTests
     public async Task AtualizarPreco_inexistente_deve_lancar_RecursoNaoEncontradoException()
     {
         var id = Guid.NewGuid();
-        _produtos.ObterPorIdAsync(id, Arg.Any<CancellationToken>()).Returns((Produto?)null);
+        _produtos.ObterParaAlteracaoAsync(id, Arg.Any<CancellationToken>()).Returns((Produto?)null);
 
         var act = () => _service.AtualizarPrecoAsync(id, new AtualizarPrecoRequest(1m, 2m));
 
@@ -239,7 +249,7 @@ public class ProdutoServiceTests
         var dto = await _service.AdicionarEstoqueAsync(produto.Id, new MovimentarEstoqueRequest(5m));
 
         dto.Estoque.Should().Be(25m);
-        _produtos.Received(1).Atualizar(produto);
+        await UsouLeituraParaAlteracaoAsync(produto);
         await DeveTerSalvadoUmaVez();
     }
 
@@ -251,7 +261,7 @@ public class ProdutoServiceTests
         var dto = await _service.BaixarEstoqueAsync(produto.Id, new MovimentarEstoqueRequest(5m));
 
         dto.Estoque.Should().Be(15m);
-        _produtos.Received(1).Atualizar(produto);
+        await UsouLeituraParaAlteracaoAsync(produto);
         await DeveTerSalvadoUmaVez();
     }
 
@@ -306,7 +316,7 @@ public class ProdutoServiceTests
     public async Task Movimentar_estoque_de_produto_inexistente_deve_lancar_RecursoNaoEncontradoException()
     {
         var id = Guid.NewGuid();
-        _produtos.ObterPorIdAsync(id, Arg.Any<CancellationToken>()).Returns((Produto?)null);
+        _produtos.ObterParaAlteracaoAsync(id, Arg.Any<CancellationToken>()).Returns((Produto?)null);
 
         var adicionar = () => _service.AdicionarEstoqueAsync(id, new MovimentarEstoqueRequest(1m));
         var baixar = () => _service.BaixarEstoqueAsync(id, new MovimentarEstoqueRequest(1m));

@@ -22,6 +22,11 @@ public class ProdutoRepository : IProdutoRepository
     public Task<Produto?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         Consulta().FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
+    // Para alteração: COM rastreamento. Duas chamadas com o mesmo id no mesmo contexto devolvem a mesma
+    // instância, e o UPDATE grava só o que mudou, protegido pelo token de concorrência (RowVersion).
+    public Task<Produto?> ObterParaAlteracaoAsync(Guid id, CancellationToken cancellationToken = default) =>
+        _context.Produtos.Include(p => p.Categoria).FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+
     public async Task<IReadOnlyList<Produto>> ListarAsync(CancellationToken cancellationToken = default) =>
         await Consulta().OrderBy(p => p.Nome).ToListAsync(cancellationToken);
 
@@ -36,16 +41,10 @@ public class ProdutoRepository : IProdutoRepository
             .OrderBy(p => p.Nome)
             .ToListAsync(cancellationToken);
 
-    public async Task AdicionarAsync(Produto produto, CancellationToken cancellationToken = default)
-    {
-        // A Categoria já existe no banco. Sem isto, o Add percorreria o grafo e tentaria inseri-la de novo.
-        _context.AnexarExistente(produto.Categoria);
-
+    // A Categoria do produto deve vir de ICategoriaRepository.ObterParaAlteracaoAsync (rastreada);
+    // uma instância desanexada seria inserida de novo pelo EF.
+    public async Task AdicionarAsync(Produto produto, CancellationToken cancellationToken = default) =>
         await _context.Produtos.AddAsync(produto, cancellationToken);
-    }
 
-    // As leituras não rastreiam: marca só o produto (sem percorrer a Categoria).
-    public void Atualizar(Produto produto) => _context.MarcarComoModificada(produto);
-
-    public void Remover(Produto produto) => _context.MarcarComoRemovida(produto);
+    public void Remover(Produto produto) => _context.Produtos.Remove(produto);
 }
