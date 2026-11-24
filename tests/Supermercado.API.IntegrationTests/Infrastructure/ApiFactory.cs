@@ -21,13 +21,21 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
     private readonly string _connectionString;
     private readonly string? _chaveJwt;
     private readonly string _ambiente;
+    private readonly string _adminEmail;
+    private readonly string _adminSenha;
 
     /// <param name="chaveJwt">Chave de assinatura. <c>null</c> deixa a API sem chave (para testar a recusa de subir).</param>
-    public ApiFactory(string connectionString, string? chaveJwt, string ambiente = "Development")
+    /// <param name="adminEmail">AdminInicial:Email. Vazio (padrão) = sem Gerente inicial.</param>
+    /// <param name="adminSenha">AdminInicial:Senha.</param>
+    public ApiFactory(
+        string connectionString, string? chaveJwt, string ambiente = "Development",
+        string adminEmail = "", string adminSenha = "")
     {
         _connectionString = connectionString;
         _chaveJwt = chaveJwt;
         _ambiente = ambiente;
+        _adminEmail = adminEmail;
+        _adminSenha = adminSenha;
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -36,9 +44,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("ConnectionStrings:Supermercado", _connectionString);
         builder.UseSetting("Jwt:Chave", _chaveJwt ?? "");
 
-        // Os testes não dependem do Gerente inicial do ambiente de quem os executa.
-        builder.UseSetting("AdminInicial:Email", "");
-        builder.UseSetting("AdminInicial:Senha", "");
+        // Por padrão os testes não dependem do Gerente inicial do ambiente de quem os executa.
+        builder.UseSetting("AdminInicial:Email", _adminEmail);
+        builder.UseSetting("AdminInicial:Senha", _adminSenha);
     }
 
     /// <summary>

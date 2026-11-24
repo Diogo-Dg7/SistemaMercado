@@ -1,7 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Supermercado.API.IntegrationTests.Infrastructure;
+using Supermercado.Application.Interfaces;
+using Supermercado.Domain.Interfaces;
 using Supermercado.Application.DTOs;
 using Supermercado.Domain.Enums;
 
@@ -42,6 +45,23 @@ public abstract class ApiTestBase : IntegracaoTestBase
         _clientes.ForEach(c => c.Dispose());
         _api.Dispose();
         return Task.CompletedTask;
+    }
+
+    /// <summary>Cria um usuário direto pelos casos de uso (com hash real), opcionalmente já inativo.</summary>
+    protected async Task CriarUsuarioNoBancoAsync(
+        string email, string senha, PerfilUsuario perfil = PerfilUsuario.Operador,
+        string nome = "Usuário de teste", bool ativo = true)
+    {
+        using var escopo = Banco.NovoEscopo();
+        var dto = await escopo.ServiceProvider.GetRequiredService<IUsuarioService>()
+            .CriarAsync(new CriarUsuarioRequest(nome, email, senha, perfil));
+
+        if (ativo)
+            return;
+
+        var repositorio = escopo.ServiceProvider.GetRequiredService<IUsuarioRepository>();
+        (await repositorio.ObterParaAlteracaoAsync(dto.Id))!.Desativar();
+        await escopo.ServiceProvider.GetRequiredService<IUnitOfWork>().SalvarAlteracoesAsync();
     }
 
     protected Task<HttpResponseMessage> PostAsync<T>(string url, T corpo) =>
