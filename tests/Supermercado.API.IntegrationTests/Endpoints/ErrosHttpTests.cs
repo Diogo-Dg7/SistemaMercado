@@ -161,8 +161,8 @@ public class ErrosHttpTests : ApiTestBase
         var categoria = await CriarCategoriaViaApiAsync();
         var produto = await CriarProdutoViaApiAsync(categoria.Id, custo: 5m, venda: 8m);
 
-        // O usuário provisório da API é Operador.
-        var resposta = await PutAsync($"/api/produtos/{produto.Id}/preco", new AtualizarPrecoRequest(10m, 9m));
+        var resposta = await ClienteComo(PerfilUsuario.Operador).PutAsJsonAsync(
+            $"/api/produtos/{produto.Id}/preco", new AtualizarPrecoRequest(10m, 9m), JsonTeste.Opcoes);
 
         var problema = await LerProblemaAsync(resposta);
         DeveSerProblemDetails(resposta, HttpStatusCode.UnprocessableEntity, problema);

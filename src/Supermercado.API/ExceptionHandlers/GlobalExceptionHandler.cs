@@ -9,7 +9,8 @@ namespace Supermercado.API.ExceptionHandlers;
 
 /// <summary>
 /// Traduz exceções em respostas ProblemDetails (RFC 9457):
-/// ValidationException → 400 (erros por campo); RecursoNaoEncontradoException → 404;
+/// ValidationException → 400 (erros por campo); CredenciaisInvalidasException → 401;
+/// RecursoNaoEncontradoException → 404;
 /// EstoqueInsuficienteException e ConflitoDeConcorrenciaException → 409; DomainException → 422;
 /// qualquer outra → 500 sem expor detalhes internos (o erro é registrado no log).
 /// </summary>
@@ -64,6 +65,10 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
 
     private static ProblemDetails Mapear(Exception exception) => exception switch
     {
+        // Mensagem única de propósito: não revela se o e-mail existe nem por que o login falhou.
+        CredenciaisInvalidasException credenciais => Criar(
+            StatusCodes.Status401Unauthorized, "Não autorizado", credenciais.Message),
+
         ValidationException validacao => Criar(
             StatusCodes.Status400BadRequest, "Dados inválidos", "Um ou mais campos são inválidos.", AgruparErros(validacao)),
 

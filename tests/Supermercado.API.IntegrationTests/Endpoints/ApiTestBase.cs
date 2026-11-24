@@ -12,17 +12,34 @@ public abstract class ApiTestBase : IntegracaoTestBase
 {
     private readonly ApiFactory _api;
 
+    private readonly List<HttpClient> _clientes = [];
+
     protected ApiTestBase(BancoDeDadosFixture banco, string ambiente = "Development") : base(banco)
     {
-        _api = new ApiFactory(banco.ConnectionString, ambiente);
-        Client = _api.CreateClient();
+        _api = new ApiFactory(banco.ConnectionString, banco.ChaveJwt, ambiente);
+        Client = ClienteComo(PerfilUsuario.Gerente);
     }
 
+    /// <summary>Cliente autenticado como Gerente (cria categorias, produtos, entradas de estoque...).</summary>
     protected HttpClient Client { get; }
+
+    protected ApiFactory Api => _api;
+
+    /// <summary>Cliente autenticado com o perfil informado.</summary>
+    protected HttpClient ClienteComo(PerfilUsuario perfil) => Registrar(_api.CriarClienteAutenticado(perfil));
+
+    /// <summary>Cliente sem token.</summary>
+    protected HttpClient ClienteAnonimo() => Registrar(_api.CreateClient());
+
+    private HttpClient Registrar(HttpClient cliente)
+    {
+        _clientes.Add(cliente);
+        return cliente;
+    }
 
     public override Task DisposeAsync()
     {
-        Client.Dispose();
+        _clientes.ForEach(c => c.Dispose());
         _api.Dispose();
         return Task.CompletedTask;
     }

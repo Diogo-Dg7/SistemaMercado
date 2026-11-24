@@ -12,6 +12,8 @@ public static class DependencyInjection
     {
         services.AddScoped<ICategoriaService, CategoriaService>();
         services.AddScoped<IProdutoService, ProdutoService>();
+        services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IUsuarioService, UsuarioService>();
 
         services.AddValidatorsFromAssemblyContaining<CriarCategoriaRequestValidator>();
 

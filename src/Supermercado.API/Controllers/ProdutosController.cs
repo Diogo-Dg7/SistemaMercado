@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Supermercado.API.Authorization;
 using Supermercado.Application.DTOs;
 using Supermercado.Application.Interfaces;
 
@@ -6,6 +8,9 @@ namespace Supermercado.API.Controllers;
 
 [ApiController]
 [Route("api/produtos")]
+[Authorize(Policy = Politicas.GerenteOuOperador)]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status500InternalServerError)]
 public class ProdutosController : ControllerBase
 {
@@ -16,8 +21,9 @@ public class ProdutosController : ControllerBase
         _produtos = produtos;
     }
 
-    /// <summary>Cria um produto.</summary>
+    /// <summary>Cria um produto. Somente Gerente.</summary>
     [HttpPost]
+    [Authorize(Policy = Politicas.ApenasGerente)]
     [ProducesResponseType<ProdutoDto>(StatusCodes.Status201Created)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
@@ -49,7 +55,7 @@ public class ProdutosController : ControllerBase
     public async Task<ActionResult<ProdutoDto>> ObterPorId(Guid id, CancellationToken cancellationToken) =>
         Ok(await _produtos.ObterPorIdAsync(id, cancellationToken));
 
-    /// <summary>Atualiza os preços de custo e de venda. Só o perfil Gerente pode vender abaixo do custo.</summary>
+    /// <summary>Atualiza os preços de custo e de venda. Operador e Gerente; só o Gerente pode vender abaixo do custo.</summary>
     [HttpPut("{id:guid}/preco")]
     [ProducesResponseType<ProdutoDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -60,8 +66,9 @@ public class ProdutosController : ControllerBase
         Guid id, AtualizarPrecoRequest request, CancellationToken cancellationToken) =>
         Ok(await _produtos.AtualizarPrecoAsync(id, request, cancellationToken));
 
-    /// <summary>Registra uma entrada de estoque.</summary>
+    /// <summary>Registra uma entrada de estoque. Somente Gerente.</summary>
     [HttpPost("{id:guid}/estoque/entrada")]
+    [Authorize(Policy = Politicas.ApenasGerente)]
     [ProducesResponseType<ProdutoDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]

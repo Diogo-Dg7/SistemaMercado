@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Supermercado.API.Authorization;
 using Supermercado.Application.DTOs;
 using Supermercado.Application.Interfaces;
 
@@ -6,6 +8,9 @@ namespace Supermercado.API.Controllers;
 
 [ApiController]
 [Route("api/categorias")]
+[Authorize(Policy = Politicas.GerenteOuOperador)]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status500InternalServerError)]
 public class CategoriasController : ControllerBase
 {
@@ -16,8 +21,9 @@ public class CategoriasController : ControllerBase
         _categorias = categorias;
     }
 
-    /// <summary>Cria uma categoria.</summary>
+    /// <summary>Cria uma categoria. Somente Gerente.</summary>
     [HttpPost]
+    [Authorize(Policy = Politicas.ApenasGerente)]
     [ProducesResponseType<CategoriaDto>(StatusCodes.Status201Created)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<CategoriaDto>> Criar(

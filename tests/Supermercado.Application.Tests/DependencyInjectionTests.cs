@@ -18,6 +18,9 @@ public class DependencyInjectionTests
         services.AddSingleton(Substitute.For<ICategoriaRepository>());
         services.AddSingleton(Substitute.For<IUnitOfWork>());
         services.AddSingleton(Substitute.For<IUsuarioAtual>());
+        services.AddSingleton(Substitute.For<IUsuarioRepository>());
+        services.AddSingleton(Substitute.For<IPasswordHasher>());
+        services.AddSingleton(Substitute.For<ITokenService>());
 
         services.AddApplication();
 
@@ -32,6 +35,8 @@ public class DependencyInjectionTests
 
         scope.ServiceProvider.GetRequiredService<ICategoriaService>().Should().BeOfType<CategoriaService>();
         scope.ServiceProvider.GetRequiredService<IProdutoService>().Should().BeOfType<ProdutoService>();
+        scope.ServiceProvider.GetRequiredService<IAuthService>().Should().BeOfType<AuthService>();
+        scope.ServiceProvider.GetRequiredService<IUsuarioService>().Should().BeOfType<UsuarioService>();
     }
 
     [Fact]
@@ -45,5 +50,7 @@ public class DependencyInjectionTests
         sp.GetRequiredService<IValidator<CriarProdutoRequest>>().Should().NotBeNull();
         sp.GetRequiredService<IValidator<AtualizarPrecoRequest>>().Should().NotBeNull();
         sp.GetRequiredService<IValidator<MovimentarEstoqueRequest>>().Should().NotBeNull();
+        sp.GetRequiredService<IValidator<LoginRequest>>().Should().NotBeNull();
+        sp.GetRequiredService<IValidator<CriarUsuarioRequest>>().Should().NotBeNull();
     }
 }

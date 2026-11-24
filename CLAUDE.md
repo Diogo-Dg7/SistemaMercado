@@ -105,6 +105,13 @@ API ──► Application ──► Domain
 - Erros tratados no `GlobalExceptionHandler` (`IExceptionHandler` + `AddProblemDetails`), sempre como `ProblemDetails`: `ValidationException` 400, `RecursoNaoEncontradoException` 404, `EstoqueInsuficienteException` e `ConflitoDeConcorrenciaException` 409, `DomainException` 422, demais 500 (sem expor detalhes; o erro vai para o log).
 - Frontend: componentes funcionais, hooks, TypeScript estrito, sem `any`.
 
+## Segurança
+- Autenticação JWT (HS256, 8 horas). `PasswordHasher` usa o `PasswordHasher` do `Microsoft.Extensions.Identity.Core` (PBKDF2): nunca implementar criptografia à mão.
+- **Segredos nunca vão no `appsettings.json`, em migration ou no código**: `Jwt:Chave` e `AdminInicial:*` ficam em `dotnet user-secrets` (ou variáveis de ambiente). A API recusa subir se `Jwt:Chave` tiver menos de 32 caracteres.
+- Todo endpoint exige usuário autenticado por padrão (política de fallback); liberar um endpoint é decisão explícita com `[AllowAnonymous]`.
+- Perfis: `[Authorize(Policy = Politicas.ApenasGerente)]` ou `Politicas.GerenteOuOperador`. O Domain ainda impede o Operador de vender abaixo do custo.
+- Login falha sempre com a mesma `CredenciaisInvalidasException` e mensagem, para não revelar quais e-mails existem.
+
 ## Comandos
 ```bash
 dotnet build

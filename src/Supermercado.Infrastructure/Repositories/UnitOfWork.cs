@@ -14,6 +14,13 @@ public class UnitOfWork : IUnitOfWork
     private const int ViolacaoDeIndiceUnico = 2601;
     private const int ViolacaoDeConstraintUnica = 2627;
 
+    // Índice único violado -> regra de negócio correspondente.
+    private static readonly Dictionary<string, string> MensagensDeDuplicidade = new(StringComparer.OrdinalIgnoreCase)
+    {
+        [ProdutoConfiguration.IndiceCodigoBarrasUnico] = "Já existe um produto com este código de barras.",
+        [UsuarioConfiguration.IndiceEmailUnico] = "Já existe um usuário com este e-mail.",
+    };
+
     private readonly SupermercadoDbContext _context;
 
     public UnitOfWork(SupermercadoDbContext context)
@@ -32,14 +39,19 @@ public class UnitOfWork : IUnitOfWork
             // Outra operação alterou o mesmo registro depois da nossa leitura (RowVersion não confere).
             throw new ConflitoDeConcorrenciaException(ex);
         }
-        catch (DbUpdateException ex) when (ViolaCodigoBarrasUnico(ex))
+        catch (DbUpdateException ex) when (ObterMensagemDeDuplicidade(ex) is not null)
         {
             // Detalhe do SQL Server não vaza: o restante do sistema só conhece a regra de negócio.
-            throw new DomainException("Já existe um produto com este código de barras.", ex);
+            throw new DomainException(ObterMensagemDeDuplicidade(ex)!, ex);
         }
     }
 
-    private static bool ViolaCodigoBarrasUnico(DbUpdateException ex) =>
-        ex.InnerException is SqlException { Number: ViolacaoDeIndiceUnico or ViolacaoDeConstraintUnica } sql
-        && sql.Message.Contains(ProdutoConfiguration.IndiceCodigoBarrasUnico, StringComparison.OrdinalIgnoreCase);
+    private static string? ObterMensagemDeDuplicidade(DbUpdateException ex)
+    {
+        if (ex.InnerException is not SqlException { Number: ViolacaoDeIndiceUnico or ViolacaoDeConstraintUnica } sql)
+            return null;
+
+        return MensagensDeDuplicidade
+            .FirstOrDefault(par => sql.Message.Contains(par.Key, StringComparison.OrdinalIgnoreCase)).Value;
+    }
 }

@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Hosting;
@@ -6,6 +7,10 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Supermercado.Application.Interfaces;
+using Supermercado.Domain.Entities;
+using Supermercado.Domain.Enums;
+using Supermercado.Domain.ValueObjects;
 using Supermercado.Infrastructure.Data;
 
 namespace Supermercado.API.IntegrationTests.Infrastructure;
@@ -14,11 +19,14 @@ namespace Supermercado.API.IntegrationTests.Infrastructure;
 public sealed class ApiFactory : WebApplicationFactory<Program>
 {
     private readonly string _connectionString;
+    private readonly string? _chaveJwt;
     private readonly string _ambiente;
 
-    public ApiFactory(string connectionString, string ambiente = "Development")
+    /// <param name="chaveJwt">Chave de assinatura. <c>null</c> deixa a API sem chave (para testar a recusa de subir).</param>
+    public ApiFactory(string connectionString, string? chaveJwt, string ambiente = "Development")
     {
         _connectionString = connectionString;
+        _chaveJwt = chaveJwt;
         _ambiente = ambiente;
     }
 
@@ -26,6 +34,32 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
     {
         builder.UseEnvironment(_ambiente);
         builder.UseSetting("ConnectionStrings:Supermercado", _connectionString);
+        builder.UseSetting("Jwt:Chave", _chaveJwt ?? "");
+
+        // Os testes não dependem do Gerente inicial do ambiente de quem os executa.
+        builder.UseSetting("AdminInicial:Email", "");
+        builder.UseSetting("AdminInicial:Senha", "");
+    }
+
+    /// <summary>
+    /// Token válido para o perfil, emitido pelo próprio ITokenService da API (mesma chave e claims do login),
+    /// sem precisar de um usuário no banco: a validação do JWT é sem estado.
+    /// </summary>
+    public string CriarToken(PerfilUsuario perfil, string? email = null)
+    {
+        var usuario = new Usuario(
+            $"Teste {perfil}", new Email(email ?? $"{perfil.ToString().ToLowerInvariant()}@teste.com"),
+            "hash-irrelevante", perfil);
+
+        return Services.GetRequiredService<ITokenService>().GerarToken(usuario).Token;
+    }
+
+    /// <summary>Cliente HTTP já autenticado com um token do perfil informado.</summary>
+    public HttpClient CriarClienteAutenticado(PerfilUsuario perfil)
+    {
+        var cliente = CreateClient();
+        cliente.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", CriarToken(perfil));
+        return cliente;
     }
 
     protected override IHost CreateHost(IHostBuilder builder)

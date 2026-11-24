@@ -15,6 +15,8 @@ public class SupermercadoDbContext : DbContext
 
     public DbSet<Categoria> Categorias => Set<Categoria>();
 
+    public DbSet<Usuario> Usuarios => Set<Usuario>();
+
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         // Toda propriedade Dinheiro (hoje e nas próximas entidades) vira decimal(18,2).

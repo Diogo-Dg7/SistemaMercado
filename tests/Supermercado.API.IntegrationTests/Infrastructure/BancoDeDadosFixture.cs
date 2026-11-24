@@ -23,6 +23,9 @@ public sealed class BancoDeDadosFixture : IAsyncLifetime
 
     public string ConnectionString { get; }
 
+    /// <summary>Chave JWT usada só nos testes (não é segredo).</summary>
+    public string ChaveJwt { get; }
+
     public BancoDeDadosFixture()
     {
         var configuracao = new ConfigurationBuilder()
@@ -35,6 +38,8 @@ public sealed class BancoDeDadosFixture : IAsyncLifetime
             ?? throw new InvalidOperationException("Defina ConnectionStrings:SupermercadoTestes para os testes de integração.");
 
         ConnectionString = connectionString;
+        ChaveJwt = configuracao["Jwt:Chave"]
+            ?? throw new InvalidOperationException("Defina Jwt:Chave em appsettings.Testes.json para os testes de integração.");
 
         // Trava de segurança: este fixture apaga o banco; nunca pode apontar para o banco real.
         var banco = new SqlConnectionStringBuilder(connectionString).InitialCatalog;
@@ -90,7 +95,7 @@ public sealed class BancoDeDadosFixture : IAsyncLifetime
     {
         using var escopo = _provider.CreateScope();
         await escopo.ServiceProvider.GetRequiredService<SupermercadoDbContext>().Database
-            .ExecuteSqlRawAsync("DELETE FROM Produtos; DELETE FROM Categorias;");
+            .ExecuteSqlRawAsync("DELETE FROM Produtos; DELETE FROM Categorias; DELETE FROM Usuarios;");
     }
 
     private sealed class UsuarioAtualFalso : IUsuarioAtual
